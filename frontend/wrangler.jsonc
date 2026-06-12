@@ -4,4 +4,8 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+  // Production API — set to your backend URL (e.g. Railway/Fly). Dev uses Vite proxy when unset.
+  "vars": {
+    "VITE_API_URL": "https://api.paypercrawl.com"
+  }
 }

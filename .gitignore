@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-
+*/.env
 # Environment and secrets
 .env
 .env.local
@@ -9,11 +9,8 @@ node_modules/
 *.pem
 *.key
 
-# Skill files
-*.SKILL.md
+# Skill file backups (PRD ships as PAYPERCRAWL_SKILL.md)
 *.SKILL.md.txt
-PAYPERCRAWL_SKILL.md
-PAYPERCRAWL_SKILL.md.txt
 
 # Build outputs
 dist/

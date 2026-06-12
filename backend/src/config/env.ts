@@ -20,7 +20,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   ENCRYPTION_KEY: z.string().length(64),
-  PROTOCOL_FEE_BPS: z.coerce.number().default(400),
+  PROTOCOL_FEE_BPS: z.coerce.number().default(500),
   PUBLISHER_SHARE_BPS: z.coerce.number().default(7000),
   WORKER_SHARE_BPS: z.coerce.number().default(2500),
 });

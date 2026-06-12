@@ -7,8 +7,6 @@ import { workersRouter } from "./workers.js";
 import { jobsRouter } from "./jobs.js";
 import { disputesRouter } from "./disputes.js";
 import { aiRouter } from "./ai.js";
-import { gatewayRouter } from "./gateway.js";
-
 export const apiRouter = Router();
 
 apiRouter.get("/health", async (_req, res) => {
@@ -29,4 +27,3 @@ apiRouter.use("/workers", workersRouter);
 apiRouter.use("/jobs", jobsRouter);
 apiRouter.use("/disputes", disputesRouter);
 apiRouter.use("/ai", aiRouter);
-apiRouter.use("/gateway", gatewayRouter);

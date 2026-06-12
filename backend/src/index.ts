@@ -9,6 +9,7 @@ import { connectDatabase } from "./lib/prisma.js";
 import { apiRouter } from "./routes/index.js";
 import { gatewayRouter } from "./routes/gateway.js";
 import { errorHandler } from "./middleware/error-handler.js";
+import { parseAuth } from "./middleware/jwt-auth.js";
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use(
 );
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
+app.use(parseAuth);
 
 app.use("/api", apiRouter);
 app.use("/gateway", gatewayRouter);

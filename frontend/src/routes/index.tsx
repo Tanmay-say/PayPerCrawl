@@ -1,5 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Component, useEffect, useState, type ReactNode } from "react";
+import {
+  Component,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Menu,
   X,
@@ -14,9 +20,13 @@ import {
   Wallet,
   CheckCircle2,
 } from "lucide-react";
-import Spline from "@splinetool/react-spline";
+import { HeroSpline } from "@/components/hero-spline";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import aiAgent from "@/assets/ai-agent.svg";
 import baseToken from "@/assets/base-token.svg";
+
+const HAND_SPLINE_URL =
+  "https://my.spline.design/aibotbentoui-KDr6gDzBrMVkQc8osnz6dVyN-923/";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -43,8 +53,8 @@ class SplineBoundary extends Component<{ children: ReactNode }, { failed: boolea
 
 function ConnectWalletButton({ onLight }: { onLight: boolean }) {
   return (
-    <button
-      type="button"
+    <Link
+      to="/login"
       className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition ${
         onLight
           ? "bg-[#0a0e14] text-white hover:bg-[#1a2332]"
@@ -53,8 +63,8 @@ function ConnectWalletButton({ onLight }: { onLight: boolean }) {
       style={{ fontFamily: MONO }}
     >
       <Wallet size={16} aria-hidden />
-      Connect Wallet
-    </button>
+      Sign In
+    </Link>
   );
 }
 
@@ -63,35 +73,27 @@ function Nav() {
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
-    let rafId = 0;
-    let pending = false;
-    const detect = () => {
-      pending = false;
-      const probeY = 40;
-      const sections = document.querySelectorAll<HTMLElement>("[data-nav-theme]");
-      let current: "light" | "dark" = "dark";
-      for (const s of sections) {
-        const r = s.getBoundingClientRect();
-        if (r.top <= probeY && r.bottom > probeY) {
-          current = (s.dataset.navTheme as "light" | "dark") ?? "dark";
-          break;
-        }
-      }
-      setTheme((prev) => (prev === current ? prev : current));
-    };
-    const onScroll = () => {
-      if (pending) return;
-      pending = true;
-      rafId = requestAnimationFrame(detect);
-    };
-    detect();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      cancelAnimationFrame(rafId);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
+    const sections = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-nav-theme]"),
+    );
+    if (!sections.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (!visible.length) return;
+        const next =
+          (visible[0].target as HTMLElement).dataset.navTheme ??
+          "dark";
+        setTheme((prev) => (prev === next ? prev : (next as "light" | "dark")));
+      },
+      { rootMargin: "-48px 0px -55% 0px", threshold: [0, 0.1, 0.5] },
+    );
+
+    sections.forEach((s) => observer.observe(s));
+    return () => observer.disconnect();
   }, []);
 
   const onLight = theme === "light";
@@ -103,7 +105,13 @@ function Nav() {
 
   return (
     <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[min(1200px,calc(100%-2rem))]">
-      <div className="flex items-center justify-between px-6 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">
+      <div
+        className={`flex items-center justify-between px-6 py-3 rounded-full border shadow-lg ${
+          onLight
+            ? "bg-white/95 border-[#202A36]/15"
+            : "bg-[#0a0e14]/80 border-white/20"
+        }`}
+      >
         <a
           href="/"
           className={`text-lg font-semibold tracking-tight transition-colors ${textColor}`}
@@ -133,7 +141,7 @@ function Nav() {
         </button>
       </div>
       {open && (
-        <div className="absolute top-full right-0 mt-2 md:hidden bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg py-3 px-2 min-w-[200px]">
+        <div className="absolute top-full right-0 mt-2 md:hidden bg-[#0a0e14]/95 border border-white/20 rounded-2xl shadow-lg py-3 px-2 min-w-[200px]">
           {NAV_LINKS.map((l) => (
             <a
               key={l}
@@ -144,20 +152,21 @@ function Nav() {
               {l}
             </a>
           ))}
-          <button
-            type="button"
+          <Link
+            to="/login"
+            onClick={() => setOpen(false)}
             className="mt-2 w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-[#0a0e14] text-white text-sm font-semibold"
           >
             <Wallet size={16} aria-hidden />
-            Connect Wallet
-          </button>
+            Sign In
+          </Link>
         </div>
       )}
     </nav>
   );
 }
 
-function Hero() {
+function Hero({ showSpline }: { showSpline: boolean }) {
   return (
     <section
       data-nav-theme="dark"
@@ -171,15 +180,17 @@ function Hero() {
 
       <Nav />
 
-      {/* Spline background — wrapped in boundary so WebGL failures don't crash the route */}
-      <div className="absolute z-0" style={{ top: 0, left: 0, right: "-160px", bottom: "-80px" }}>
-        <SplineBoundary>
-          <Spline
-            scene="https://prod.spline.design/l88s5-l7Vu1AfHLi/scene.splinecode"
-            style={{ width: "100%", height: "100%" }}
-          />
-        </SplineBoundary>
-      </div>
+      {/* Spline background — unmounted when HandSection iframe is active to avoid dual WebGL */}
+      {showSpline && (
+        <div
+          className="absolute z-0"
+          style={{ top: 0, left: 0, right: "-160px", bottom: "-80px" }}
+        >
+          <SplineBoundary>
+            <HeroSpline style={{ width: "100%", height: "100%" }} />
+          </SplineBoundary>
+        </div>
+      )}
       {/* Safety overlay disabled for verification */}
       {/* Hero content — pointer-events-none so Spline receives mouse input; re-enable on interactive children */}
       <div className="relative z-10 min-h-screen flex items-center px-6 md:px-12 lg:px-20 pointer-events-none">
@@ -189,7 +200,7 @@ function Hero() {
                   className="text-[10px] md:text-[11px] tracking-[0.3em] uppercase text-white/70 mb-5"
                   style={{ fontFamily: MONO }}
                 >
-                  AI Crawler Monetization · Built on Sui
+                  AI Crawler Monetization · Built on Base
                 </p>
                 <h1 className="leading-[1.02]" style={{ fontFamily: SERIF }}>
                   <span className="block text-5xl md:text-6xl lg:text-7xl text-white/55 tracking-tight">
@@ -205,7 +216,7 @@ function Hero() {
                 </h1>
                 <p className="text-sm md:text-base text-white/75 mt-6 mb-7 max-w-md leading-relaxed">
                   The permissionless protocol that lets any publisher charge AI
-                  agents for content access — settled on Sui, cached on Walrus.
+                  agents for content access — settled on Base in USDC.
                 </p>
                 <div className="flex gap-3 flex-wrap pointer-events-auto">
                   <button className="px-5 py-2.5 rounded-full bg-white text-gray-900 text-sm font-semibold hover:bg-white/90 transition">
@@ -213,7 +224,7 @@ function Hero() {
                   </button>
                   <Link
                     to="/publisher"
-                    className="px-5 py-2.5 rounded-full bg-white/10 backdrop-blur border border-white/30 text-white text-sm font-semibold hover:bg-white/20 transition"
+                    className="px-5 py-2.5 rounded-full bg-white/15 border border-white/30 text-white text-sm font-semibold hover:bg-white/20 transition"
                   >
                     Become a Publisher
                   </Link>
@@ -225,9 +236,35 @@ function Hero() {
   );
 }
 
-function HandSection() {
+function HandSection({
+  onSplineActiveChange,
+}: {
+  onSplineActiveChange: (active: boolean) => void;
+}) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [loadIframe, setLoadIframe] = useState(false);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const active =
+          entry.isIntersecting && entry.intersectionRatio >= 0.15;
+        setLoadIframe(active);
+        onSplineActiveChange(active);
+      },
+      { rootMargin: "120px 0px", threshold: [0, 0.15, 0.35] },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [onSplineActiveChange]);
+
   return (
     <section
+      ref={sectionRef}
       data-nav-theme="dark"
       className="relative py-24 lg:py-32 px-4 md:px-8"
       style={{
@@ -235,18 +272,8 @@ function HandSection() {
           "linear-gradient(180deg, #05080c 0%, #0e1218 40%, #141a23 100%)",
       }}
     >
-      {/* grain */}
-      <div
-        aria-hidden
-        className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
-        }}
-      />
-
       <div className="relative max-w-7xl mx-auto">
-        <div className="rounded-[2.5rem] border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)] p-8 md:p-12 lg:p-16">
+        <div className="rounded-[2.5rem] border border-white/10 bg-white/[0.06] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)] p-8 md:p-12 lg:p-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <div>
               <div className="relative inline-block mb-6">
@@ -285,9 +312,9 @@ function HandSection() {
               </h2>
               <p className="text-base md:text-lg text-white/65 leading-relaxed max-w-xl mb-8">
                 An agent requests a page. Your gateway returns HTTP&nbsp;402
-                with payment terms. The agent pays a Move contract on Sui — 90%
-                to you, 7% to the cache, 3% to the protocol — and gets a
-                single-use CrawlTicket. Present it back, content streams.
+                with payment terms. The agent pays the Base escrow contract — 70%
+                to you, 25% to the worker, 5% to the protocol — and gets a
+                single-use crawl receipt. Present it back, content streams.
               </p>
               <div className="flex flex-wrap gap-2">
                 {[
@@ -297,7 +324,7 @@ function HandSection() {
                 ].map((m) => (
                   <span
                     key={m}
-                    className="px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/15 text-white/80 text-xs backdrop-blur"
+                    className="px-3.5 py-1.5 rounded-full bg-white/[0.08] border border-white/15 text-white/80 text-xs"
                     style={{ fontFamily: MONO }}
                   >
                     {m}
@@ -306,15 +333,21 @@ function HandSection() {
               </div>
             </div>
             <div className="relative w-full aspect-[4/3] lg:aspect-[16/11] rounded-[2rem] overflow-hidden border border-white/10 bg-[#05080c] shadow-2xl">
-              {/* Spline iframe — lazy-loaded so it doesn't compete with hero on first paint */}
-              <iframe
-                src="https://my.spline.design/aibotbentoui-KDr6gDzBrMVkQc8osnz6dVyN-923/"
-                title="AI bot"
-                loading="lazy"
-                frameBorder="0"
-                className="absolute top-0 left-0 w-full"
-                style={{ height: "calc(100% + 70px)" }}
-              />
+              {loadIframe ? (
+                <iframe
+                  src={HAND_SPLINE_URL}
+                  title="AI bot"
+                  loading="lazy"
+                  frameBorder="0"
+                  className="absolute top-0 left-0 w-full"
+                  style={{ height: "calc(100% + 70px)" }}
+                />
+              ) : (
+                <div
+                  className="absolute inset-0 bg-[#05080c]"
+                  aria-hidden
+                />
+              )}
             </div>
           </div>
         </div>
@@ -340,11 +373,11 @@ const FLOW_STEPS = [
   },
   {
     icon: Wallet,
-    title: "Pays on Sui",
-    desc: "Move contract mints a CrawlTicket NFT.",
+    title: "Pays on Base",
+    desc: "USDC escrow on Base Sepolia settles the crawl.",
     accent: "#4DA2FF",
     code: "pay_for_crawl()",
-    sui: true,
+    base: true,
   },
   {
     icon: CheckCircle2,
@@ -357,17 +390,43 @@ const FLOW_STEPS = [
 
 function FlowStrip() {
   const [activeStep, setActiveStep] = useState(0);
+  const sectionRef = useRef<HTMLElement>(null);
+  const reducedMotion = usePrefersReducedMotion();
+  const [inView, setInView] = useState(false);
+  const [tabVisible, setTabVisible] = useState(true);
 
   useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setInView(entry.isIntersecting),
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const onVisibility = () =>
+      setTabVisible(document.visibilityState === "visible");
+    onVisibility();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (reducedMotion || !inView || !tabVisible) return;
     const t = setInterval(
       () => setActiveStep((s) => (s + 1) % FLOW_STEPS.length),
       1800,
     );
     return () => clearInterval(t);
-  }, []);
+  }, [reducedMotion, inView, tabVisible]);
 
   return (
     <section
+      ref={sectionRef}
       data-nav-theme="dark"
       className="relative py-24 lg:py-32 px-6 lg:px-16 overflow-hidden"
       style={{
@@ -482,7 +541,7 @@ function FlowStrip() {
                       }}
                     />
                     <div
-                      className={`relative w-[88px] h-[88px] rounded-2xl border flex items-center justify-center backdrop-blur-md transition-all duration-500 ${
+                      className={`relative w-[88px] h-[88px] rounded-2xl border flex items-center justify-center transition-all duration-500 ${
                         isActive
                           ? "border-white/30 bg-white/10 scale-105"
                           : "border-white/10 bg-white/[0.04]"
@@ -493,10 +552,10 @@ function FlowStrip() {
                           : undefined
                       }
                     >
-                      {s.sui ? (
+                      {s.base ? (
                         <img
                           src={baseToken}
-                          alt="Sui token"
+                          alt="Base USDC"
                           loading="lazy"
                           width={512}
                           height={512}
@@ -567,7 +626,7 @@ function FlowStrip() {
             className="h-6 w-6 flow-float"
           />
           <span style={{ fontFamily: MONO }} className="text-[11px] tracking-[0.25em] uppercase">
-            Settled on Sui · ~$0.001 gas · Finality &lt; 500ms
+            Settled on Base · ~$0.001 / page · USDC micropayments
           </span>
         </div>
       </div>
@@ -581,7 +640,7 @@ const FEATURES = [
     icon: Coins,
     label: "Payments",
     title: "Sub-cent micropayments",
-    desc: "$0.001 per page settled on Sui. Stripe's 30¢ floor makes this impossible on Web2.",
+    desc: "$0.001 per page settled on Base in USDC. Stripe's 30¢ floor makes this impossible on Web2.",
     accent: "#FF6B35",
     featured: true,
   },
@@ -589,28 +648,28 @@ const FEATURES = [
     icon: ShieldCheck,
     label: "Gateway",
     title: "HTTP 402 Gateway",
-    desc: "Drop-in middleware returns payment terms and verifies CrawlTickets via Sui RPC before serving.",
+    desc: "Drop-in middleware returns HTTP 402 payment terms and verifies crawl receipts on Base.",
     accent: "#3B82F6",
   },
   {
     icon: Database,
     label: "Storage",
-    title: "Walrus verifiable cache",
-    desc: "Popular content cached as Walrus blobs. Repeat crawls cost less; publishers still earn royalties.",
+    title: "Verifiable cache",
+    desc: "Popular content cached with content hashes. Repeat crawls cost less; publishers still earn royalties.",
     accent: "#14B8A6",
   },
   {
     icon: Ticket,
     label: "Receipts",
     title: "CrawlTicket objects",
-    desc: "Single-use, 60s TTL, replay-proof. Move-native objects, not opaque receipts.",
+    desc: "Single-use, 60s TTL, replay-proof. Signed provenance receipts for compliance.",
     accent: "#FF6B35",
   },
   {
     icon: UserCheck,
     label: "Onboarding",
-    title: "zkLogin onboarding",
-    desc: "Publishers register with Google or email. No seed phrases, no bridges, no friction.",
+    title: "Email onboarding",
+    desc: "Publishers register with email and JWT auth. Wallet connect for agents on Base.",
     accent: "#A855F7",
   },
   {
@@ -684,7 +743,7 @@ function Features() {
                 className={`group relative overflow-hidden rounded-3xl p-8 transition-all duration-500 hover:-translate-y-1.5 ${
                   isFeatured
                     ? "lg:col-span-2 text-white shadow-xl"
-                    : "bg-white/70 backdrop-blur-sm border border-[#202A36]/10 hover:border-[#202A36]/25 hover:shadow-xl"
+                    : "bg-white border border-[#202A36]/10 hover:border-[#202A36]/25 hover:shadow-xl"
                 }`}
                 style={
                   isFeatured
@@ -776,7 +835,7 @@ function Footer() {
   const cols = [
     {
       title: "Protocol",
-      links: ["How it works", "Move contracts", "Walrus cache", "Roadmap"],
+      links: ["How it works", "Base contracts", "Gateway cache", "Roadmap"],
     },
     {
       title: "Publishers",
@@ -818,7 +877,7 @@ function Footer() {
               <span style={{ fontStyle: "italic", color: "#FF6B35" }}>
                 pay-per-crawl
               </span>{" "}
-              — micropayments on Sui, verifiable cache on Walrus.
+              — micropayments on Base, settled in USDC.
             </p>
             <div className="mt-6 flex items-center gap-2">
               <span
@@ -839,7 +898,7 @@ function Footer() {
                   height={512}
                   className="h-3.5 w-3.5"
                 />
-                Sui · Walrus
+                Base · USDC
               </span>
             </div>
           </div>
@@ -893,10 +952,12 @@ function Footer() {
 }
 
 function Index() {
+  const [handSplineActive, setHandSplineActive] = useState(false);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Hero />
-      <HandSection />
+      <Hero showSpline={!handSplineActive} />
+      <HandSection onSplineActiveChange={setHandSplineActive} />
       <FlowStrip />
       <Features />
       <Footer />

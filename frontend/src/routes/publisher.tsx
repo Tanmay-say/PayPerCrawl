@@ -29,12 +29,12 @@ export const Route = createFileRoute("/publisher")({
       {
         name: "description",
         content:
-          "Track AI crawler revenue, monitor traffic, manage sites, and withdraw earnings on Sui.",
+          "Track AI crawler revenue, monitor traffic, manage sites, and withdraw earnings on Base.",
       },
       { property: "og:title", content: "Publisher Dashboard — PayPerCrawl" },
       {
         property: "og:description",
-        content: "Earn from every AI crawl. Settled on Sui, cached on Walrus.",
+        content: "Earn from every AI crawl. Settled on Base in USDC.",
       },
     ],
   }),
@@ -131,7 +131,7 @@ function StatCard({
   unit?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 hover:border-white/20 transition">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5 hover:border-white/20 transition">
       <div className="flex items-start justify-between mb-4">
         <div
           className="px-2.5 py-1 rounded-full text-[10px] uppercase tracking-[0.18em] text-white/60 border border-white/10 bg-white/[0.04]"
@@ -190,15 +190,9 @@ function PublisherDashboard() {
           "radial-gradient(ellipse at top left, #1a2332 0%, #0a0e14 55%, #05080c 100%)",
       }}
     >
-      {/* grain */}
-      <svg className="fixed inset-0 w-full h-full opacity-[0.04] pointer-events-none mix-blend-overlay" aria-hidden>
-        <filter id="pgrain"><feTurbulence baseFrequency="0.9" numOctaves="2" /></filter>
-        <rect width="100%" height="100%" filter="url(#pgrain)" />
-      </svg>
-
       <div className="relative flex">
         {/* Sidebar */}
-        <aside className="hidden lg:flex flex-col w-64 min-h-screen border-r border-white/10 bg-black/20 backdrop-blur-xl px-5 py-6 sticky top-0">
+        <aside className="hidden lg:flex flex-col w-64 min-h-screen border-r border-white/10 bg-[#0a0e14]/95 px-5 py-6 sticky top-0">
           <Link to="/" className="flex items-center gap-2 mb-10">
             <span className="text-xl tracking-tight" style={{ fontFamily: SERIF }}>
               PayPer<span className="italic text-[#FF6B35]">Crawl</span>
@@ -233,7 +227,7 @@ function PublisherDashboard() {
           <div className="mt-auto pt-6">
             <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent p-4">
               <div className="flex items-center gap-2 mb-2">
-                <img src={baseToken} alt="Sui" className="w-5 h-5" />
+                <img src={baseToken} alt="Base" className="w-5 h-5" />
                 <span className="text-xs text-white/60" style={{ fontFamily: MONO }}>
                   WALLET
                 </span>
@@ -251,7 +245,7 @@ function PublisherDashboard() {
         {/* Main */}
         <main className="flex-1 min-w-0">
           {/* Topbar */}
-          <header className="flex items-center justify-between px-6 lg:px-10 py-5 border-b border-white/10 backdrop-blur-xl sticky top-0 z-20 bg-[#0a0e14]/60">
+          <header className="flex items-center justify-between px-6 lg:px-10 py-5 border-b border-white/10 sticky top-0 z-20 bg-[#0a0e14]/95">
             <div>
               <div className="text-[10px] uppercase tracking-[0.22em] text-white/50" style={{ fontFamily: MONO }}>
                 Publisher Console
@@ -312,7 +306,7 @@ function PublisherDashboard() {
 
             {/* Chart + Top agents */}
             <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-              <div className="xl:col-span-2 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+              <div className="xl:col-span-2 rounded-2xl border border-white/10 bg-white/[0.05] p-6">
                 <div className="flex items-end justify-between mb-4">
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.22em] text-white/50" style={{ fontFamily: MONO }}>
@@ -341,7 +335,7 @@ function PublisherDashboard() {
                 <Sparkline data={SERIES} />
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-6">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-white/50 mb-4" style={{ fontFamily: MONO }}>
                   Top Agents
                 </div>
@@ -371,7 +365,7 @@ function PublisherDashboard() {
             </section>
 
             {/* Crawl log */}
-            <section className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+            <section className="rounded-2xl border border-white/10 bg-white/[0.05] overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                 <div>
                   <div className="text-[10px] uppercase tracking-[0.22em] text-white/50" style={{ fontFamily: MONO }}>
@@ -415,7 +409,7 @@ function PublisherDashboard() {
 
             {/* Sites + Payouts */}
             <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-6">
                 <div className="flex items-center justify-between mb-5">
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.22em] text-white/50" style={{ fontFamily: MONO }}>
@@ -455,17 +449,17 @@ function PublisherDashboard() {
                 </ul>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-6">
                 <div className="flex items-center justify-between mb-5">
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.22em] text-white/50" style={{ fontFamily: MONO }}>
                       Payouts
                     </div>
                     <div className="text-lg text-white" style={{ fontFamily: SERIF }}>
-                      Recent settlements on Sui
+                      Recent settlements on Base
                     </div>
                   </div>
-                  <img src={baseToken} alt="Sui" className="w-8 h-8 opacity-90" />
+                  <img src={baseToken} alt="Base" className="w-8 h-8 opacity-90" />
                 </div>
                 <ul className="divide-y divide-white/5">
                   {PAYOUTS.map((p) => (
@@ -491,7 +485,7 @@ function PublisherDashboard() {
             </section>
 
             <footer className="pt-8 pb-12 text-center text-white/40 text-xs" style={{ fontFamily: MONO }}>
-              Built on Sui · Cached on Walrus · v0.4.2-mock
+              Built on Base · USDC settlements · v0.4.2-mock
             </footer>
           </div>
         </main>

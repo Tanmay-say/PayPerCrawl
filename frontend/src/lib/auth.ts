@@ -25,6 +25,17 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   });
 }
 
+export async function getBalance(): Promise<{ balance: string }> {
+  return apiFetch<{ balance: string }>("/api/balance");
+}
+
+export async function deposit(amount: string): Promise<{ balance: string }> {
+  return apiFetch<{ balance: string }>("/api/balance/deposit", {
+    method: "POST",
+    body: JSON.stringify({ amount }),
+  });
+}
+
 export function dashboardPathForRole(role: Role): string {
   switch (role) {
     case "PUBLISHER":

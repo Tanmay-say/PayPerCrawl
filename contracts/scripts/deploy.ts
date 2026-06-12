@@ -13,7 +13,7 @@ async function main() {
   const usdcAddress = (process.env.USDC_ADDRESS ?? DEFAULT_USDC_BASE_SEPOLIA) as `0x${string}`;
   const publisherBps = Number(process.env.PUBLISHER_SHARE_BPS ?? 7000);
   const workerBps = Number(process.env.WORKER_SHARE_BPS ?? 2500);
-  const protocolBps = Number(process.env.PROTOCOL_FEE_BPS ?? 400);
+  const protocolBps = Number(process.env.PROTOCOL_FEE_BPS ?? 500);
 
   if (publisherBps + workerBps + protocolBps !== 10_000) {
     throw new Error("PUBLISHER_SHARE_BPS + WORKER_SHARE_BPS + PROTOCOL_FEE_BPS must equal 10000");
