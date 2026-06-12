@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Component,
+  useCallback,
   useEffect,
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
 import {
   Menu,
@@ -89,7 +91,7 @@ function Nav() {
           "dark";
         setTheme((prev) => (prev === next ? prev : (next as "light" | "dark")));
       },
-      { rootMargin: "-48px 0px -55% 0px", threshold: [0, 0.1, 0.5] },
+      { rootMargin: "-48px 0px -60% 0px", threshold: 0 },
     );
 
     sections.forEach((s) => observer.observe(s));
@@ -166,9 +168,16 @@ function Nav() {
   );
 }
 
-function Hero({ showSpline }: { showSpline: boolean }) {
+function Hero({
+  sectionRef,
+  showSpline,
+}: {
+  sectionRef: RefObject<HTMLElement | null>;
+  showSpline: boolean;
+}) {
   return (
     <section
+      ref={sectionRef}
       data-nav-theme="dark"
       className="relative min-h-screen overflow-hidden"
       style={{
@@ -687,18 +696,20 @@ function Features() {
       id="features"
       data-nav-theme="light"
       className="relative py-24 lg:py-32 px-6 lg:px-16 overflow-hidden bg-gradient-to-b from-[#f5f1ea] via-white to-[#eef1f6]"
-      style={{ fontFamily: 'Inter, ui-sans-serif, system-ui' }}
+      style={{
+        fontFamily: "Inter, ui-sans-serif, system-ui",
+        contentVisibility: "auto",
+        containIntrinsicSize: "0 900px",
+      }}
     >
-      {/* Dot pattern */}
+      {/* Static dot pattern — no maskImage (was forcing expensive compositing on scroll) */}
       <div
         aria-hidden
-        className="absolute inset-0 opacity-[0.18] pointer-events-none"
+        className="absolute inset-0 opacity-[0.12] pointer-events-none"
         style={{
           backgroundImage:
             "radial-gradient(circle, #202A36 1px, transparent 1px)",
-          backgroundSize: "28px 28px",
-          maskImage:
-            "radial-gradient(ellipse 70% 60% at 50% 30%, black 30%, transparent 75%)",
+          backgroundSize: "32px 32px",
         }}
       />
 
@@ -740,10 +751,10 @@ function Features() {
             return (
               <div
                 key={f.title}
-                className={`group relative overflow-hidden rounded-3xl p-8 transition-all duration-500 hover:-translate-y-1.5 ${
+                className={`group relative overflow-hidden rounded-3xl p-8 ${
                   isFeatured
-                    ? "lg:col-span-2 text-white shadow-xl"
-                    : "bg-white border border-[#202A36]/10 hover:border-[#202A36]/25 hover:shadow-xl"
+                    ? "lg:col-span-2 text-white shadow-lg"
+                    : "bg-white border border-[#202A36]/10"
                 }`}
                 style={
                   isFeatured
@@ -758,7 +769,7 @@ function Features() {
                 {isFeatured && (
                   <div
                     aria-hidden
-                    className="absolute -right-4 -bottom-8 text-[12rem] leading-none opacity-[0.07] select-none"
+                    className="absolute -right-4 -bottom-8 text-[8rem] leading-none opacity-[0.06] select-none pointer-events-none"
                     style={{ fontFamily: SERIF, color: "#FF6B35" }}
                   >
                     $0.001
@@ -768,7 +779,7 @@ function Features() {
                 <div className="relative flex items-start justify-between mb-8">
                   {/* Icon badge */}
                   <div
-                    className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-transform duration-500 group-hover:rotate-6 ${
+                    className={`relative w-14 h-14 rounded-full flex items-center justify-center ${
                       isFeatured
                         ? "bg-white/10 border border-white/20"
                         : "bg-white border border-[#202A36]/15 shadow-sm"
@@ -779,14 +790,8 @@ function Features() {
                       style={{ color: isFeatured ? "#fff" : "#202A36" }}
                     />
                     <span
-                      className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full ring-2"
-                      style={{
-                        backgroundColor: f.accent,
-                        boxShadow: `0 0 12px ${f.accent}`,
-                        ...(isFeatured
-                          ? { boxShadow: `0 0 12px ${f.accent}` }
-                          : {}),
-                      }}
+                      className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full ring-2 ring-white/80"
+                      style={{ backgroundColor: f.accent }}
                     />
                   </div>
                   {/* Number / label */}
@@ -801,7 +806,7 @@ function Features() {
                 </div>
 
                 <h3
-                  className="relative text-2xl md:text-[28px] leading-tight tracking-tight mb-3 transition-colors duration-300"
+                  className="relative text-2xl md:text-[28px] leading-tight tracking-tight mb-3"
                   style={{
                     fontFamily: SERIF,
                     color: isFeatured ? "#fff" : "#202A36",
@@ -817,11 +822,6 @@ function Features() {
                   {f.desc}
                 </p>
 
-                {/* Hover underline accent */}
-                <span
-                  className="absolute left-8 right-8 bottom-6 h-px scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-500"
-                  style={{ backgroundColor: f.accent }}
-                />
               </div>
             );
           })}
@@ -852,6 +852,7 @@ function Footer() {
   ];
   return (
     <footer
+      data-nav-theme="dark"
       className="relative pt-20 pb-10 px-6 lg:px-16"
       style={{
         background:
@@ -953,11 +954,36 @@ function Footer() {
 
 function Index() {
   const [handSplineActive, setHandSplineActive] = useState(false);
+  const [heroPastViewport, setHeroPastViewport] = useState(false);
+  const heroRef = useRef<HTMLElement>(null);
+
+  const onHandSplineActiveChange = useCallback((active: boolean) => {
+    setHandSplineActive(active);
+  }, []);
+
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) {
+          setHeroPastViewport(true);
+        }
+      },
+      { threshold: 0 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const showHeroSpline = !handSplineActive && !heroPastViewport;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Hero showSpline={!handSplineActive} />
-      <HandSection onSplineActiveChange={setHandSplineActive} />
+      <Hero sectionRef={heroRef} showSpline={showHeroSpline} />
+      <HandSection onSplineActiveChange={onHandSplineActiveChange} />
       <FlowStrip />
       <Features />
       <Footer />

@@ -11,7 +11,10 @@ node_modules/
 
 # Skill file backups (PRD ships as PAYPERCRAWL_SKILL.md)
 *.SKILL.md.txt
-
+PAYPERCRAWL_SKILL.md.txt
+PAYPERCRAWL_SKILL.md
+PAYPERCRAWL_SKILL.md.txt
+PAYPERCRAWL_SKILL.md.txt
 # Build outputs
 dist/
 dist-ssr/
