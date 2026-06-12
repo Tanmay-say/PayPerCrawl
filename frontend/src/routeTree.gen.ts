@@ -9,19 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PublisherRouteImport } from './routes/publisher'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
-import { Route as DashboardWorkerRouteImport } from './routes/dashboard/worker'
-import { Route as DashboardRequesterRouteImport } from './routes/dashboard/requester'
+import { Route as DashboardSitesNewRouteImport } from './routes/dashboard/sites.new'
+import { Route as DashboardSitesIdRouteImport } from './routes/dashboard/sites.$id'
 
-const PublisherRoute = PublisherRouteImport.update({
-  id: '/publisher',
-  path: '/publisher',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -42,14 +36,14 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardWorkerRoute = DashboardWorkerRouteImport.update({
-  id: '/worker',
-  path: '/worker',
+const DashboardSitesNewRoute = DashboardSitesNewRouteImport.update({
+  id: '/sites/new',
+  path: '/sites/new',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardRequesterRoute = DashboardRequesterRouteImport.update({
-  id: '/requester',
-  path: '/requester',
+const DashboardSitesIdRoute = DashboardSitesIdRouteImport.update({
+  id: '/sites/$id',
+  path: '/sites/$id',
   getParentRoute: () => DashboardRoute,
 } as any)
 
@@ -57,28 +51,25 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
-  '/publisher': typeof PublisherRoute
-  '/dashboard/requester': typeof DashboardRequesterRoute
-  '/dashboard/worker': typeof DashboardWorkerRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/sites/$id': typeof DashboardSitesIdRoute
+  '/dashboard/sites/new': typeof DashboardSitesNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/publisher': typeof PublisherRoute
-  '/dashboard/requester': typeof DashboardRequesterRoute
-  '/dashboard/worker': typeof DashboardWorkerRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/dashboard/sites/$id': typeof DashboardSitesIdRoute
+  '/dashboard/sites/new': typeof DashboardSitesNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
-  '/publisher': typeof PublisherRoute
-  '/dashboard/requester': typeof DashboardRequesterRoute
-  '/dashboard/worker': typeof DashboardWorkerRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/sites/$id': typeof DashboardSitesIdRoute
+  '/dashboard/sites/new': typeof DashboardSitesNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -86,45 +77,34 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/login'
-    | '/publisher'
-    | '/dashboard/requester'
-    | '/dashboard/worker'
     | '/dashboard/'
+    | '/dashboard/sites/$id'
+    | '/dashboard/sites/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
-    | '/publisher'
-    | '/dashboard/requester'
-    | '/dashboard/worker'
     | '/dashboard'
+    | '/dashboard/sites/$id'
+    | '/dashboard/sites/new'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
     | '/login'
-    | '/publisher'
-    | '/dashboard/requester'
-    | '/dashboard/worker'
     | '/dashboard/'
+    | '/dashboard/sites/$id'
+    | '/dashboard/sites/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
-  PublisherRoute: typeof PublisherRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/publisher': {
-      id: '/publisher'
-      path: '/publisher'
-      fullPath: '/publisher'
-      preLoaderRoute: typeof PublisherRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -153,33 +133,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/worker': {
-      id: '/dashboard/worker'
-      path: '/worker'
-      fullPath: '/dashboard/worker'
-      preLoaderRoute: typeof DashboardWorkerRouteImport
+    '/dashboard/sites/new': {
+      id: '/dashboard/sites/new'
+      path: '/sites/new'
+      fullPath: '/dashboard/sites/new'
+      preLoaderRoute: typeof DashboardSitesNewRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/requester': {
-      id: '/dashboard/requester'
-      path: '/requester'
-      fullPath: '/dashboard/requester'
-      preLoaderRoute: typeof DashboardRequesterRouteImport
+    '/dashboard/sites/$id': {
+      id: '/dashboard/sites/$id'
+      path: '/sites/$id'
+      fullPath: '/dashboard/sites/$id'
+      preLoaderRoute: typeof DashboardSitesIdRouteImport
       parentRoute: typeof DashboardRoute
     }
   }
 }
 
 interface DashboardRouteChildren {
-  DashboardRequesterRoute: typeof DashboardRequesterRoute
-  DashboardWorkerRoute: typeof DashboardWorkerRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardSitesIdRoute: typeof DashboardSitesIdRoute
+  DashboardSitesNewRoute: typeof DashboardSitesNewRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
-  DashboardRequesterRoute: DashboardRequesterRoute,
-  DashboardWorkerRoute: DashboardWorkerRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardSitesIdRoute: DashboardSitesIdRoute,
+  DashboardSitesNewRoute: DashboardSitesNewRoute,
 }
 
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
@@ -190,7 +170,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
-  PublisherRoute: PublisherRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

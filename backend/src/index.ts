@@ -26,8 +26,9 @@ app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 app.use(parseAuth);
 
-app.use("/api", apiRouter);
+// Public unauthenticated edge — Cloudflare Worker hits /gateway/check
 app.use("/gateway", gatewayRouter);
+app.use("/api", apiRouter);
 
 app.use(errorHandler);
 

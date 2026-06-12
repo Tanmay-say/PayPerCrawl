@@ -1,20 +1,38 @@
 # Dependencies
 node_modules/
-*/.env
-# Environment and secrets
+TESTING.md
+PAYPERCRAWL_SKILL.md
+.CODECRAFT_SKILL.md
+.codex
+.cursor/
+.cursorrules
+.cursorrules.md
+.cursorrules.txt
+.cursorrules.yml
+.cursorrules.yaml
+.cursorrules.yml
+
+demo-site/node_modules/
+demo-site/dist/
+demo-site/.next/
+demo-site/.vercel/
+demo-site/
+
+AGENTS.md
+
+scripts/
+# Environment and secrets (root + every workspace)
 .env
 .env.local
 .env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
 !.env.example
+!**/.env.example
 *.pem
 *.key
-
-# Skill file backups (PRD ships as PAYPERCRAWL_SKILL.md)
-*.SKILL.md.txt
-PAYPERCRAWL_SKILL.md.txt
-PAYPERCRAWL_SKILL.md
-PAYPERCRAWL_SKILL.md.txt
-PAYPERCRAWL_SKILL.md.txt
+**/.env.vercel
 # Build outputs
 dist/
 dist-ssr/
@@ -22,10 +40,14 @@ dist-ssr/
 .vinxi/
 .tanstack/
 .nitro/
+.next/
+.vercel/
 frontend/dist/
 backend/dist/
+demo-site/.next/
+demo-site/.vercel/
 
-# Hardhat / contracts
+# Hardhat / contracts (keep deployments/, ignore everything else generated)
 contracts/cache/
 contracts/artifacts/
 contracts/typechain-types/
@@ -36,7 +58,7 @@ contracts/coverage.json
 .wrangler/
 .dev.vars
 
-# Prisma local sqlite (if used)
+# Prisma local sqlite
 backend/prisma/*.db
 backend/prisma/*.db-journal
 
@@ -61,7 +83,7 @@ Desktop.ini
 *.sln
 *.sw?
 
-# Graphify (local codebase graph — regenerate with `graphify update .`)
+# Graphify (regenerate with `graphify update .`)
 graphify-out/
 .graphify_root
 
@@ -73,6 +95,6 @@ graphify-out/
 .eslintcache
 .cache/
 
-# Optional: frontend uses npm (package-lock.json); ignore Bun lock if present
-frontend/bun.lock
+# Bun lock — repo uses npm
 bun.lock
+**/bun.lock

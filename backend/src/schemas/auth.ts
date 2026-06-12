@@ -1,21 +1,12 @@
 import { z } from "zod";
 
-export const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(12),
-  role: z.enum(["PUBLISHER", "REQUESTER", "WORKER"]),
-});
-
-export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-});
-
-export const agentNonceSchema = z.object({
+export const siweNonceSchema = z.object({
   walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
 });
 
-export const agentVerifySchema = z.object({
+export const siweVerifySchema = z.object({
   walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-  signature: z.string().min(1),
+  signature: z.string().regex(/^0x[a-fA-F0-9]+$/),
+  message: z.string().min(1),
+  email: z.string().email().optional(),
 });

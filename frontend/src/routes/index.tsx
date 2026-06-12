@@ -232,7 +232,7 @@ function Hero({
                     Read Docs
                   </button>
                   <Link
-                    to="/publisher"
+                    to="/dashboard"
                     className="px-5 py-2.5 rounded-full bg-white/15 border border-white/30 text-white text-sm font-semibold hover:bg-white/20 transition"
                   >
                     Become a Publisher

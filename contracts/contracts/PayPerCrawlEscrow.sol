@@ -4,131 +4,82 @@ pragma solidity ^0.8.24;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {IPayPerCrawlEscrow} from "./interfaces/IPayPerCrawlEscrow.sol";
+import {IPayPerCrawlRegistry} from "./interfaces/IPayPerCrawlRegistry.sol";
 
 /// @title PayPerCrawlEscrow
-/// @notice Locks USDC per job; settler releases split or refunds payer.
-contract PayPerCrawlEscrow is IPayPerCrawlEscrow, ReentrancyGuard {
+/// @notice Atomic per-crawl payment + protocol-fee split. No settler, no held funds.
+/// @dev Agent calls payForCrawl with a fresh nonce; USDC is split publisher / treasury in one tx.
+contract PayPerCrawlEscrow is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    struct EscrowRecord {
-        uint256 amount;
-        address payer;
-        EscrowStatus status;
-    }
-
     IERC20 public immutable usdc;
+    IPayPerCrawlRegistry public immutable registry;
     address public immutable treasury;
-    address public settler;
-
-    uint16 public immutable publisherShareBps;
-    uint16 public immutable workerShareBps;
     uint16 public immutable protocolFeeBps;
 
-    mapping(bytes32 jobId => EscrowRecord) private _escrows;
+    /// @dev siteId => nonce => spent
+    mapping(bytes32 => mapping(bytes32 => bool)) public usedNonces;
 
     error ZeroAddress();
     error InvalidBps();
-    error NotSettler();
-    error EscrowAlreadyExists();
-    error EscrowNotLocked();
-    error EscrowAlreadyFinalized();
-    error ZeroAmount();
+    error NonceUsed();
+    error SiteInactive();
+    error InsufficientAmount();
 
-    modifier onlySettler() {
-        if (msg.sender != settler) revert NotSettler();
-        _;
-    }
+    event CrawlPaid(
+        bytes32 indexed siteId,
+        address indexed agent,
+        address indexed publisher,
+        bytes32 nonce,
+        uint256 amount,
+        uint256 publisherCut,
+        uint256 protocolCut
+    );
 
     constructor(
         address usdc_,
+        address registry_,
         address treasury_,
-        address settler_,
-        uint16 publisherShareBps_,
-        uint16 workerShareBps_,
         uint16 protocolFeeBps_
     ) {
-        if (usdc_ == address(0) || treasury_ == address(0) || settler_ == address(0)) {
+        if (usdc_ == address(0) || registry_ == address(0) || treasury_ == address(0)) {
             revert ZeroAddress();
         }
-        if (uint256(publisherShareBps_) + workerShareBps_ + protocolFeeBps_ != 10_000) {
-            revert InvalidBps();
-        }
+        if (protocolFeeBps_ > 10_000) revert InvalidBps();
 
         usdc = IERC20(usdc_);
+        registry = IPayPerCrawlRegistry(registry_);
         treasury = treasury_;
-        settler = settler_;
-        publisherShareBps = publisherShareBps_;
-        workerShareBps = workerShareBps_;
         protocolFeeBps = protocolFeeBps_;
     }
 
-    function setSettler(address newSettler) external onlySettler {
-        if (newSettler == address(0)) revert ZeroAddress();
-        settler = newSettler;
-    }
+    /// @notice Pay for a crawl. Splits USDC between publisher (90%) and treasury (10%) atomically.
+    function payForCrawl(bytes32 siteId, bytes32 nonce, uint256 amount) external nonReentrant {
+        if (usedNonces[siteId][nonce]) revert NonceUsed();
 
-    function lockEscrow(bytes32 jobId, uint256 amount) external nonReentrant {
-        if (amount == 0) revert ZeroAmount();
+        (address publisher, uint256 priceMicros, bool active, ) = registry.getSite(siteId);
+        if (!active || publisher == address(0)) revert SiteInactive();
+        if (amount < priceMicros) revert InsufficientAmount();
 
-        EscrowRecord storage record = _escrows[jobId];
-        if (record.status != EscrowStatus.None) revert EscrowAlreadyExists();
+        usedNonces[siteId][nonce] = true;
 
         usdc.safeTransferFrom(msg.sender, address(this), amount);
 
-        record.amount = amount;
-        record.payer = msg.sender;
-        record.status = EscrowStatus.Locked;
+        uint256 protocolCut = (amount * protocolFeeBps) / 10_000;
+        uint256 publisherCut = amount - protocolCut;
 
-        emit EscrowLocked(jobId, msg.sender, amount);
-    }
-
-    function releaseToParties(bytes32 jobId, address publisher, address worker)
-        external
-        onlySettler
-        nonReentrant
-    {
-        if (publisher == address(0) || worker == address(0)) revert ZeroAddress();
-
-        EscrowRecord storage record = _escrows[jobId];
-        if (record.status != EscrowStatus.Locked) revert EscrowNotLocked();
-
-        uint256 total = record.amount;
-        uint256 publisherAmount = (total * publisherShareBps) / 10_000;
-        uint256 workerAmount = (total * workerShareBps) / 10_000;
-        uint256 protocolAmount = total - publisherAmount - workerAmount;
-
-        record.status = EscrowStatus.Released;
-
-        usdc.safeTransfer(publisher, publisherAmount);
-        usdc.safeTransfer(worker, workerAmount);
-        if (protocolAmount > 0) {
-            usdc.safeTransfer(treasury, protocolAmount);
+        if (publisherCut > 0) {
+            usdc.safeTransfer(publisher, publisherCut);
+        }
+        if (protocolCut > 0) {
+            usdc.safeTransfer(treasury, protocolCut);
         }
 
-        emit EscrowReleased(jobId, publisher, worker, publisherAmount, workerAmount, protocolAmount);
+        emit CrawlPaid(siteId, msg.sender, publisher, nonce, amount, publisherCut, protocolCut);
     }
 
-    function refund(bytes32 jobId) external onlySettler nonReentrant {
-        EscrowRecord storage record = _escrows[jobId];
-        if (record.status != EscrowStatus.Locked) revert EscrowNotLocked();
-
-        uint256 amount = record.amount;
-        address payer = record.payer;
-
-        record.status = EscrowStatus.Refunded;
-
-        usdc.safeTransfer(payer, amount);
-
-        emit EscrowRefunded(jobId, payer, amount);
-    }
-
-    function getEscrow(bytes32 jobId)
-        external
-        view
-        returns (uint256 amount, address payer, EscrowStatus status)
-    {
-        EscrowRecord storage record = _escrows[jobId];
-        return (record.amount, record.payer, record.status);
+    /// @notice Quick view used by the gateway / publisher dashboard.
+    function isPaid(bytes32 siteId, bytes32 nonce) external view returns (bool) {
+        return usedNonces[siteId][nonce];
     }
 }

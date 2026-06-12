@@ -11,19 +11,14 @@ async function main() {
   const chainId = await publicClient.getChainId();
 
   const usdcAddress = (process.env.USDC_ADDRESS ?? DEFAULT_USDC_BASE_SEPOLIA) as `0x${string}`;
-  const publisherBps = Number(process.env.PUBLISHER_SHARE_BPS ?? 7000);
-  const workerBps = Number(process.env.WORKER_SHARE_BPS ?? 2500);
-  const protocolBps = Number(process.env.PROTOCOL_FEE_BPS ?? 500);
-
-  if (publisherBps + workerBps + protocolBps !== 10_000) {
-    throw new Error("PUBLISHER_SHARE_BPS + WORKER_SHARE_BPS + PROTOCOL_FEE_BPS must equal 10000");
+  const protocolBps = Number(process.env.PROTOCOL_FEE_BPS ?? 1000);
+  if (protocolBps <= 0 || protocolBps >= 10_000) {
+    throw new Error("PROTOCOL_FEE_BPS must be between 1 and 9999 (e.g. 1000 = 10%)");
   }
-
-  const settlerAddress = (process.env.SETTLER_ADDRESS ?? deployer.account.address) as `0x${string}`;
 
   console.log("Deployer:", deployer.account.address);
   console.log("USDC:", usdcAddress);
-  console.log("Settler:", settlerAddress);
+  console.log("Protocol fee bps:", protocolBps);
 
   const treasury = await hre.viem.deployContract("PayPerCrawlTreasury", [
     usdcAddress,
@@ -31,24 +26,16 @@ async function main() {
   ]);
   console.log("PayPerCrawlTreasury:", treasury.address);
 
+  const registry = await hre.viem.deployContract("PayPerCrawlRegistry", []);
+  console.log("PayPerCrawlRegistry:", registry.address);
+
   const escrow = await hre.viem.deployContract("PayPerCrawlEscrow", [
     usdcAddress,
+    registry.address,
     treasury.address,
-    settlerAddress,
-    publisherBps,
-    workerBps,
     protocolBps,
   ]);
   console.log("PayPerCrawlEscrow:", escrow.address);
-
-  const challengerRewardBps = 2000;
-  const workerStake = await hre.viem.deployContract("WorkerStake", [
-    usdcAddress,
-    treasury.address,
-    settlerAddress,
-    challengerRewardBps,
-  ]);
-  console.log("WorkerStake:", workerStake.address);
 
   const networkName = hre.network.name;
   const deployment = {
@@ -56,15 +43,9 @@ async function main() {
     chainId,
     usdc: getAddress(usdcAddress),
     treasury: getAddress(treasury.address),
+    registry: getAddress(registry.address),
     escrow: getAddress(escrow.address),
-    workerStake: getAddress(workerStake.address),
-    settler: getAddress(settlerAddress),
-    splitBps: {
-      publisher: publisherBps,
-      worker: workerBps,
-      protocol: protocolBps,
-      challengerSlash: challengerRewardBps,
-    },
+    protocolFeeBps: protocolBps,
     deployedAt: new Date().toISOString(),
   };
 

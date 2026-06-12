@@ -7,7 +7,9 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { WagmiProvider } from "wagmi";
 
+import { wagmiConfig } from "@/lib/wagmi";
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -76,21 +78,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Metered web-crawl marketplace. Publishers gate content, AI agents pay per page, workers fulfill crawls — settled on Base.",
+          "Publishers gate content with HTTP 402; AI agents pay USDC on Base per crawl. 90% to publishers, 10% protocol fee.",
       },
-      { name: "author", content: "PayPerCrawl" },
       { property: "og:title", content: "PayPerCrawl" },
       {
         property: "og:description",
-        content: "Pay-per-crawl micropayments for publishers and AI agents.",
+        content: "Pay-per-crawl micropayments on Base USDC.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "PayPerCrawl" },
-      {
-        name: "twitter:description",
-        content: "Pay-per-crawl micropayments for publishers and AI agents.",
-      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -126,8 +121,10 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Outlet />
-    </QueryClientProvider>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <Outlet />
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }
