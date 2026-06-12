@@ -9,6 +9,12 @@ node_modules/
 *.pem
 *.key
 
+# Skill files
+*.SKILL.md
+*.SKILL.md.txt
+PAYPERCRAWL_SKILL.md
+PAYPERCRAWL_SKILL.md.txt
+
 # Build outputs
 dist/
 dist-ssr/

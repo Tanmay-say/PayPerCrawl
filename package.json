@@ -1,0 +1,21 @@
+{
+  "name": "paypercrawl",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "db:migrate": "npm run prisma:migrate --prefix backend",
+    "db:seed": "npm run prisma:seed --prefix backend",
+    "db:studio": "npm run prisma:studio --prefix backend",
+    "contracts:compile": "npm run compile --prefix contracts",
+    "contracts:test": "npm run test --prefix contracts",
+    "contracts:deploy:sepolia": "npm run deploy:sepolia --prefix contracts",
+    "contracts:verify:sepolia": "npm run verify:sepolia --prefix contracts"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

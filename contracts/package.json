@@ -1,0 +1,24 @@
+{
+  "name": "@paypercrawl/contracts",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network baseSepolia",
+    "verify:sepolia": "hardhat run scripts/verify.ts --network baseSepolia",
+    "clean": "hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.1.0",
+    "@nomicfoundation/hardhat-viem": "^2.0.0",
+    "@types/node": "^22.16.5",
+    "dotenv": "^16.6.1",
+    "hardhat": "^2.26.0",
+    "typescript": "^5.8.3",
+    "viem": "^2.37.9"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0"
+  }
+}

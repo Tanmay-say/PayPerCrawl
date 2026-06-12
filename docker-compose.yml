@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: paypercrawl-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: paypercrawl
+      POSTGRES_PASSWORD: paypercrawl
+      POSTGRES_DB: paypercrawl
+    volumes:
+      - paypercrawl_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paypercrawl -d paypercrawl"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: paypercrawl-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - paypercrawl_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  paypercrawl_pg_data:
+  paypercrawl_redis_data:
