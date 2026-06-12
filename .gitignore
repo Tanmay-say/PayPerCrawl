@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+*.pem
+*.key
+
+# Build outputs
+dist/
+dist-ssr/
+.output/
+.vinxi/
+.tanstack/
+.nitro/
+frontend/dist/
+backend/dist/
+
+# Hardhat / contracts
+contracts/cache/
+contracts/artifacts/
+contracts/typechain-types/
+contracts/coverage/
+contracts/coverage.json
+
+# Cloudflare
+.wrangler/
+.dev.vars
+
+# Prisma local sqlite (if used)
+backend/prisma/*.db
+backend/prisma/*.db-journal
+
+# Logs and test output
+*.log
+logs/
+coverage/
+.nyc_output/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Graphify (local codebase graph — regenerate with `graphify update .`)
+graphify-out/
+.graphify_root
+
+# Cursor / local tooling
+.cursor/
+
+# Tool caches
+*.tsbuildinfo
+.eslintcache
+.cache/
+
+# Optional: frontend uses npm (package-lock.json); ignore Bun lock if present
+frontend/bun.lock
+bun.lock
