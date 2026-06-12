@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Runtime: Supabase pooler (6543 + pgbouncer=true). Local: same as DIRECT_URL.
+  url       = env("DATABASE_URL")
+  // Migrations: Supabase direct session (5432). Defaults to DATABASE_URL locally.
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  PUBLISHER
+  REQUESTER
+  WORKER
+  ADMIN
+}
+
+enum WorkerStatus {
+  ACTIVE
+  SLASHED
+  SUSPENDED
+}
+
+enum OutputFormat {
+  RAW_HTML
+  RENDERED_HTML
+  TEXT
+  JSON
+  SCREENSHOT
+  PDF
+}
+
+enum JobStatus {
+  DRAFT
+  SUBMITTED
+  ESCROW_LOCKED
+  QUEUED
+  CLAIMED
+  EXECUTING
+  RESULT_SUBMITTED
+  VERIFYING
+  SETTLED
+  REFUNDED
+  DISPUTED
+  SLASHED
+}
+
+enum VerificationMode {
+  OPTIMISTIC
+  ZKTLS
+}
+
+enum EscrowStatus {
+  LOCKED
+  RELEASED
+  REFUNDED
+}
+
+enum DisputeStatus {
+  OPEN
+  UPHELD
+  REJECTED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String?  @unique
+  walletAddress String?  @unique
+  role          Role
+  passwordHash  String?
+  createdAt     DateTime @default(now())
+
+  publisher Publisher?
+  worker    Worker?
+}
+
+model Publisher {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain          String   @unique
+  domainVerified  Boolean  @default(false)
+  pricePerCrawl   BigInt
+  gateSecret      String
+  earningsBalance BigInt   @default(0)
+}
+
+model Worker {
+  id              String       @id @default(cuid())
+  userId          String       @unique
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stakeAmount     BigInt       @default(0)
+  reputation      Int          @default(0)
+  jobsCompleted   Int          @default(0)
+  disputesLost    Int          @default(0)
+  minFee          BigInt       @default(0)
+  capabilities    String[]
+  status          WorkerStatus @default(ACTIVE)
+  earningsBalance BigInt       @default(0)
+}
+
+model Job {
+  id                String           @id @default(cuid())
+  requesterId       String
+  targetUrl         String
+  outputFormat      OutputFormat
+  maxFee            BigInt
+  tip               BigInt           @default(0)
+  status            JobStatus
+  verificationMode  VerificationMode
+  claimedByWorkerId String?
+  resultPointer     String?
+  resultHash        String?
+  publisherId       String?
+  ttlExpiresAt      DateTime
+  createdAt         DateTime         @default(now())
+  settledAt         DateTime?
+
+  escrow            Escrow?
+  events            JobEvent[]
+  provenanceReceipt ProvenanceReceipt?
+  disputes          Dispute[]
+}
+
+model Escrow {
+  id     String       @id @default(cuid())
+  jobId  String       @unique
+  job    Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  payer  String
+  amount BigInt
+  status EscrowStatus
+}
+
+model JobEvent {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  fromState String?
+  toState   String
+  actor     String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
+}
+
+model ProvenanceReceipt {
+  id              String   @id @default(cuid())
+  jobId           String   @unique
+  job             Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  contentHash     String
+  crawledAt       DateTime
+  publisherDomain String?
+  signature       String
+  licenseTerms    String
+}
+
+model Dispute {
+  id             String        @id @default(cuid())
+  jobId          String
+  job            Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  challengerId   String
+  evidenceHash   String
+  status         DisputeStatus
+  createdAt      DateTime      @default(now())
+
+  @@index([jobId])
+}
+
+model Nonce {
+  value         String   @id
+  walletAddress String
+  used          Boolean  @default(false)
+  expiresAt     DateTime
+
+  @@index([walletAddress])
+}
+
+model LedgerAccount {
+  id      String @id
+  balance BigInt @default(0)
+
+  entries LedgerEntry[]
+}
+
+model LedgerEntry {
+  id        String   @id @default(cuid())
+  accountId String
+  account   LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  delta     BigInt
+  refType   String
+  refId     String
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+  @@index([refId, refType])
+}
