@@ -954,7 +954,7 @@ function Footer() {
 
 function Index() {
   const [handSplineActive, setHandSplineActive] = useState(false);
-  const [heroPastViewport, setHeroPastViewport] = useState(false);
+  const [heroInView, setHeroInView] = useState(true);
   const heroRef = useRef<HTMLElement>(null);
 
   const onHandSplineActiveChange = useCallback((active: boolean) => {
@@ -967,9 +967,7 @@ function Index() {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) {
-          setHeroPastViewport(true);
-        }
+        setHeroInView(entry.isIntersecting);
       },
       { threshold: 0 },
     );
@@ -978,7 +976,9 @@ function Index() {
     return () => observer.disconnect();
   }, []);
 
-  const showHeroSpline = !handSplineActive && !heroPastViewport;
+  // Only run hero WebGL while the hero is on screen and hand iframe is not active.
+  // Unmounts when scrolling to Features/Footer (avoids hang); remounts when scrolling back up.
+  const showHeroSpline = heroInView && !handSplineActive;
 
   return (
     <div className="min-h-screen bg-gray-50">
