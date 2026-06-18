@@ -5,9 +5,18 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import tailwindcss from "@tailwindcss/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 
+// DEPLOY_TARGET selects the SSR adapter. Cloudflare is the legacy default; set
+// DEPLOY_TARGET=vercel (Vercel does this automatically via VERCEL=1) to emit a
+// Node-compatible Vercel function via TanStack Start's Nitro preset.
+const isVercel = process.env.VERCEL === "1" || process.env.DEPLOY_TARGET === "vercel";
+
+if (isVercel && !process.env.NITRO_PRESET) {
+  process.env.NITRO_PRESET = "vercel";
+}
+
 export default defineConfig({
   plugins: [
-    cloudflare({ viteEnvironment: { name: "ssr" } }),
+    ...(isVercel ? [] : [cloudflare({ viteEnvironment: { name: "ssr" } })]),
     tsconfigPaths(),
     tanstackStart({
       server: { entry: "server" },
