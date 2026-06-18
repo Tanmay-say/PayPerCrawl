@@ -27,6 +27,23 @@ function NewSitePage() {
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<"idle" | "signing" | "mining" | "saving">("idle");
 
+  /**
+   * Strip `http(s)://`, optional `www.`, any path/query/fragment, and trailing
+   * slashes — leaving just the hostname we put on-chain.
+   *   "https://blog.example.com/articles?ref=x" -> "blog.example.com"
+   */
+  function normalizeDomainInput(raw: string): string {
+    let s = raw.trim().toLowerCase();
+    s = s.replace(/^[a-z]+:\/\//, "");
+    s = s.split("/")[0];
+    s = s.split("?")[0];
+    s = s.split("#")[0];
+    s = s.replace(/^www\./, "");
+    return s;
+  }
+
+  const normalizedPreview = normalizeDomainInput(domain);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -34,9 +51,14 @@ function NewSitePage() {
       setError("Connect a wallet first.");
       return;
     }
-    const normalizedDomain = domain.trim().toLowerCase();
-    if (!/^[a-z0-9.-]+$/.test(normalizedDomain) || normalizedDomain.length < 4) {
-      setError("Enter a valid domain (e.g. blog.example.com)");
+    const normalizedDomain = normalizeDomainInput(domain);
+    if (
+      !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(normalizedDomain) ||
+      normalizedDomain.length < 4
+    ) {
+      setError(
+        "Enter a valid domain (e.g. blog.example.com or paypercrawldemo.vercel.app)",
+      );
       return;
     }
 
@@ -136,9 +158,17 @@ function NewSitePage() {
             required
             placeholder="blog.example.com"
             className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
           />
           <span className="mt-1 block text-xs text-white/40">
-            Lowercase. Subdomain ok. Used for on-chain siteId derivation.
+            Just the hostname. Pasting <code>https://...</code> works — the protocol is stripped.
+            {normalizedPreview && normalizedPreview !== domain.trim().toLowerCase() && (
+              <>
+                {" "}Will register as <code className="text-white/70">{normalizedPreview}</code>.
+              </>
+            )}
           </span>
         </label>
 

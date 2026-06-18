@@ -6,7 +6,14 @@ const bytes32 = z.string().regex(/^0x[a-fA-F0-9]{64}$/);
 export const registerSiteSchema = z.object({
   /** On-chain siteId returned by computeSiteId / SiteRegistered log. */
   onchainId: bytes32,
-  domain: z.string().min(3).max(253).regex(/^[a-z0-9.-]+$/i),
+  /** Bare hostname, lowercase. Must contain at least one dot (e.g. example.com). */
+  domain: z
+    .string()
+    .min(4)
+    .max(253)
+    .regex(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/, {
+      message: "Must be a bare hostname like blog.example.com",
+    }),
   priceMicros: z.string().regex(/^\d+$/),
   /** Tx that called registerSite — verified server-side. */
   txHash,

@@ -12,9 +12,11 @@ function shorten(s: string, head = 6, tail = 4): string {
   return `${s.slice(0, head)}...${s.slice(-tail)}`;
 }
 
+type Tab = "agent" | "meta" | "worker" | "events";
+
 function SiteDetailPage() {
   const { id } = Route.useParams();
-  const [tab, setTab] = useState<"snippet" | "worker" | "events">("snippet");
+  const [tab, setTab] = useState<Tab>("agent");
 
   const siteQuery = useQuery({
     queryKey: ["site", id],
@@ -63,26 +65,33 @@ function SiteDetailPage() {
         />
       </div>
 
-      <div className="border-b border-white/10 flex gap-6 text-sm">
-        {(["snippet", "worker", "events"] as const).map((t) => (
+      <div className="border-b border-white/10 flex gap-6 text-sm flex-wrap">
+        {(
+          [
+            ["agent", "Deploy via AI agent"],
+            ["meta", "Meta tag"],
+            ["worker", "Cloudflare Worker"],
+            ["events", "Crawl events"],
+          ] as const
+        ).map(([t, label]) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`pb-3 -mb-px border-b-2 capitalize ${
+            className={`pb-3 -mb-px border-b-2 ${
               tab === t
                 ? "border-[#0052FF] text-white"
                 : "border-transparent text-white/50 hover:text-white"
             }`}
           >
-            {t === "snippet" ? "Meta tag" : t === "worker" ? "Cloudflare Worker" : "Crawl events"}
+            {label}
           </button>
         ))}
       </div>
 
-      {tab === "snippet" && snippet && (
-        <SnippetTab snippet={snippet} />
-      )}
+      {tab === "agent" && snippet && <AgentPromptTab snippet={snippet} />}
+
+      {tab === "meta" && snippet && <SnippetTab snippet={snippet} />}
 
       {tab === "worker" && snippet && <WorkerTab snippet={snippet} />}
 
@@ -139,6 +148,86 @@ function CopyBlock({ label, value }: { label: string; value: string }) {
       <pre className="p-4 text-xs font-mono text-white/80 overflow-x-auto whitespace-pre-wrap break-all">
 {value}
       </pre>
+    </div>
+  );
+}
+
+function AgentPromptTab({ snippet }: { snippet: import("@/lib/sites").SiteSnippet }) {
+  const usdc = (Number(snippet.priceMicros) / 1_000_000).toString();
+  const prompt = `You are deploying PayPerCrawl protection on my website ${snippet.domain}.
+
+Goal: gate every AI-bot request with HTTP 402 so crawlers must pay USDC on Base
+(${snippet.chain}) before content is served. I receive 90%, the protocol gets 10%.
+
+Use these credentials, do NOT change them:
+
+  PPC_SITE_ID       = ${snippet.siteId}
+  PPC_API_BASE      = ${snippet.apiBase}
+  PPC_ESCROW        = ${snippet.escrow}
+  PPC_USDC          = ${snippet.usdc}
+  PPC_PRICE_MICROS  = ${snippet.priceMicros}     // ${usdc} USDC per crawl
+  PPC_CHAIN         = ${snippet.chain}
+  PPC_CHAIN_ID      = ${snippet.chainId}
+
+Do all of this:
+
+1. Add this meta tag to every HTML page in the <head>:
+${snippet.metaTag}
+
+2. Choose ONE enforcement layer based on where ${snippet.domain} is hosted:
+
+   a) Cloudflare proxied site → deploy a Cloudflare Worker.
+      - Open Cloudflare Dashboard → Workers & Pages → Create → Hello World.
+      - Replace the Worker code with the file from
+        ${snippet.apiBase}/templates/worker.js
+      - Settings → Variables: add the seven PPC_* env vars above plus
+        PPC_ORIGIN = the real origin URL of ${snippet.domain}.
+      - Add a Route on ${snippet.domain}/* pointing at this Worker.
+
+   b) Vercel / Next.js site → add Edge Middleware.
+      - Create middleware.ts at the project root with the matcher
+        config: ["/article/:path*"] (adjust paths I want to gate).
+      - Detect bot User-Agents (GPTBot, ClaudeBot, PerplexityBot, Bytespider,
+        Anthropic-AI, Google-Extended, MetaAI, CCBot, cohere-ai). For matched
+        requests without an X-PPC-Receipt header, return HTTP 402 with the
+        JSON body { siteId, escrow, usdc, priceMicros, chain, chainId, nonce }.
+      - For requests with X-PPC-Receipt + X-PPC-Nonce, POST to
+        \`\${PPC_API_BASE}/api/gateway/verify\` with { siteId, nonce, txHash,
+        userAgent, path }; on 200, call NextResponse.next(); else return 402.
+      - Add the seven PPC_* env vars in the Vercel project settings.
+
+   c) Express / Node site → add a middleware identical to (b), but using
+      Express req/res. Mount it BEFORE any route handler. Same behaviour:
+      402 with payment terms, verify on second hit.
+
+3. Verify the deployment by running:
+
+      curl -i -A "GPTBot" https://${snippet.domain}/
+      # → HTTP/1.1 402 Payment Required + JSON body with siteId + nonce
+
+      curl -i https://${snippet.domain}/
+      # → HTTP/1.1 200 OK (humans pass through)
+
+4. Do NOT modify the contract addresses or siteId. They are immutable on-chain
+   identifiers tied to my publisher wallet.
+
+5. Once deployed, paste back: the live URL of the gated site, the route I'm
+   gating, and the curl output for both requests above.`;
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-white/60">
+        Copy this prompt and paste it into Cursor / Claude / Codex / your AI agent of choice.
+        It already includes your on-chain <code>siteId</code>, contract addresses, and price —
+        the agent just has to wire it into your hosting platform.
+      </p>
+      <CopyBlock label="Prompt for AI agent" value={prompt} />
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-xs text-white/60">
+        <strong className="text-white/80">Why this works:</strong> the credentials above are
+        <em> public on-chain identifiers</em>, not secrets. Anyone who knows them can only{" "}
+        <em>pay you</em>; they cannot withdraw, change your price, or impersonate you. Your
+        publisher wallet (the one that signed registerSite) is the only key that can mutate
+        the registry entry.
+      </div>
     </div>
   );
 }
