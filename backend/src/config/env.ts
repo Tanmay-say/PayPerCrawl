@@ -5,6 +5,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(3001),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
+  /** Optional comma-separated list of additional allowed origins (production frontends, demo sites). */
+  CORS_ORIGINS: z.string().optional(),
   /** Runtime DB URL — Supabase: pooler (6543) with ?pgbouncer=true&connection_limit=1 */
   DATABASE_URL: z.string().min(1),
   /** Migrations — Supabase: direct (5432). Falls back to DATABASE_URL. */

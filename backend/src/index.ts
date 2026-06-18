@@ -1,36 +1,8 @@
-import express from "express";
-import cookieParser from "cookie-parser";
-import cors from "cors";
-import helmet from "helmet";
 import { env } from "./config/env.js";
+import { createApp } from "./app.js";
 import { verifyConnections } from "./lib/connections.js";
 import { connectRedis } from "./lib/redis.js";
 import { connectDatabase } from "./lib/prisma.js";
-import { apiRouter } from "./routes/index.js";
-import { gatewayRouter } from "./routes/gateway.js";
-import { errorHandler } from "./middleware/error-handler.js";
-import { parseAuth } from "./middleware/jwt-auth.js";
-
-const app = express();
-
-app.set("trust proxy", 1);
-
-app.use(helmet());
-app.use(
-  cors({
-    origin: env.CORS_ORIGIN,
-    credentials: true,
-  }),
-);
-app.use(express.json({ limit: "1mb" }));
-app.use(cookieParser());
-app.use(parseAuth);
-
-// Public unauthenticated edge — Cloudflare Worker hits /gateway/check
-app.use("/gateway", gatewayRouter);
-app.use("/api", apiRouter);
-
-app.use(errorHandler);
 
 async function start() {
   await connectRedis();
@@ -41,6 +13,7 @@ async function start() {
     console.warn("Connection warnings:", connections.errors.join("; "));
   }
 
+  const app = createApp();
   app.listen(env.PORT, () => {
     console.log(`PayPerCrawl API listening on http://localhost:${env.PORT}`);
     console.log(
