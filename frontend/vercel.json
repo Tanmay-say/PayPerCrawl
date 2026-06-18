@@ -1,12 +1,22 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
-  "framework": null,
   "installCommand": "npm install --include=dev",
+  "framework": null,
+  "outputDirectory": "dist/client",
   "build": {
     "env": {
       "DEPLOY_TARGET": "vercel",
       "NITRO_PRESET": "vercel"
     }
-  }
+  },
+  "functions": {
+    "api/index.mjs": {
+      "maxDuration": 30,
+      "includeFiles": "dist/server/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/((?!_next/|favicon.svg|favicon.ico|robots.txt|assets/|templates/).*)", "destination": "/api/index" }
+  ]
 }
