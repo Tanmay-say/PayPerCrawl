@@ -3,10 +3,10 @@
   "buildCommand": "npm run vercel-build",
   "installCommand": "npm install --include=dev",
   "framework": null,
+  "outputDirectory": "public",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/gateway/(.*)", "destination": "/api/index" },
-    { "source": "/", "destination": "/api/index" }
+    { "source": "/gateway/(.*)", "destination": "/api/index" }
   ],
   "functions": {
     "api/index.ts": {

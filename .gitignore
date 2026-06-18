@@ -19,6 +19,7 @@ demo-site/.vercel/
 demo-site/
 
 AGENTS.md
+DEPLOYMENT.md
 
 scripts/
 # Environment and secrets (root + every workspace)
