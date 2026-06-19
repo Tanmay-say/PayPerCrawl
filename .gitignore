@@ -22,6 +22,7 @@ AGENTS.md
 DEPLOYMENT.md
 
 scripts/
+mcp-server/
 # Environment and secrets (root + every workspace)
 .env
 .env.local
@@ -99,3 +100,7 @@ graphify-out/
 # Bun lock — repo uses npm
 bun.lock
 **/bun.lock
+
+# Claude Desktop / MCP config (contains the agent private key)
+claude_desktop_config.json
+mcp.json

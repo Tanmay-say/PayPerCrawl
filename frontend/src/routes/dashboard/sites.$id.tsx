@@ -154,76 +154,200 @@ function CopyBlock({ label, value }: { label: string; value: string }) {
 
 function AgentPromptTab({ snippet }: { snippet: import("@/lib/sites").SiteSnippet }) {
   const usdc = (Number(snippet.priceMicros) / 1_000_000).toString();
+  const middlewareSrc = `// middleware.js — PayPerCrawl Vercel Edge Middleware (drop in at project root)
+//
+// CRITICAL: nonce MUST be 0x + 64 lowercase hex chars (32 raw bytes / "bytes32").
+// The on-chain payForCrawl(bytes32 siteId, bytes32 nonce, ...) ABI rejects
+// any other length, including UUIDs (36 chars). The agent's tx will never
+// land if you generate the nonce wrong.
+
+export const config = {
+  // Adjust the matcher to gate the paths you want behind 402.
+  matcher: ['/((?!_next/static|_next/image|favicon.*|robots.txt|sitemap.*|assets/).*)'],
+}
+
+const PPC_SITE_ID      = process.env.PPC_SITE_ID      ?? '${snippet.siteId}'
+const PPC_API_BASE     = process.env.PPC_API_BASE     ?? '${snippet.apiBase}'
+const PPC_ESCROW       = process.env.PPC_ESCROW       ?? '${snippet.escrow}'
+const PPC_USDC         = process.env.PPC_USDC         ?? '${snippet.usdc}'
+const PPC_PRICE_MICROS = process.env.PPC_PRICE_MICROS ?? '${snippet.priceMicros}'
+const PPC_CHAIN        = process.env.PPC_CHAIN        ?? '${snippet.chain}'
+const PPC_CHAIN_ID     = process.env.PPC_CHAIN_ID     ?? '${snippet.chainId}'
+
+const BOT_PATTERNS = [
+  'GPTBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-Web', 'anthropic-ai',
+  'PerplexityBot', 'Bytespider', 'Google-Extended', 'MetaAI',
+  'meta-externalagent', 'CCBot', 'cohere-ai', 'Amazonbot', 'YouBot', 'Diffbot',
+]
+
+function isAiBot(ua) {
+  if (!ua) return false
+  const lower = ua.toLowerCase()
+  return BOT_PATTERNS.some(p => lower.includes(p.toLowerCase()))
+}
+
+// MUST be bytes32. NEVER use crypto.randomUUID() — UUIDs are 36 chars.
+function freshNonceBytes32() {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return '0x' + Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+}
+
+function paymentRequired(nonce, path) {
+  const body = JSON.stringify({
+    error:       'Payment Required',
+    siteId:      PPC_SITE_ID,
+    escrow:      PPC_ESCROW,
+    usdc:        PPC_USDC,
+    priceMicros: Number(PPC_PRICE_MICROS),
+    chain:       PPC_CHAIN,
+    chainId:     Number(PPC_CHAIN_ID),
+    nonce,
+    path,
+  }, null, 2)
+
+  return new Response(body, {
+    status: 402,
+    headers: {
+      'Content-Type':       'application/json',
+      'X-PPC-Site-ID':      PPC_SITE_ID,
+      'X-PPC-Nonce':        nonce,
+      'X-PPC-Price-Micros': PPC_PRICE_MICROS,
+      'X-PPC-Escrow':       PPC_ESCROW,
+      'X-PPC-Chain':        PPC_CHAIN,
+      'Cache-Control':      'no-store',
+    },
+  })
+}
+
+export default async function middleware(req) {
+  const ua = req.headers.get('user-agent') || ''
+  if (!isAiBot(ua)) return // humans / non-bots pass through
+
+  const path    = new URL(req.url).pathname
+  const receipt = req.headers.get('x-ppc-receipt')
+  const nonce   = req.headers.get('x-ppc-nonce')
+
+  if (!receipt || !nonce) {
+    return paymentRequired(freshNonceBytes32(), path)
+  }
+
+  // Verify the on-chain receipt with the PayPerCrawl backend.
+  try {
+    const verify = await fetch(\`\${PPC_API_BASE}/api/gateway/verify\`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ siteId: PPC_SITE_ID, nonce, txHash: receipt, userAgent: ua, path }),
+    })
+    if (verify.ok) return // payment good — let the bot through
+    return paymentRequired(freshNonceBytes32(), path)
+  } catch {
+    // Gateway down — fail open so paid crawlers aren't blocked by an outage.
+    return
+  }
+}
+`;
+
   const prompt = `You are deploying PayPerCrawl protection on my website ${snippet.domain}.
 
-Goal: gate every AI-bot request with HTTP 402 so crawlers must pay USDC on Base
-(${snippet.chain}) before content is served. I receive 90%, the protocol gets 10%.
+GOAL — gate every AI-bot request with HTTP 402 so crawlers must pay USDC on
+${snippet.chain} (chainId ${snippet.chainId}) before content is served. I get 90% to my publisher
+wallet, the protocol gets 10%.
 
-Use these credentials, do NOT change them:
+================================================================================
+HARD CONTRACT — read carefully, the on-chain tx FAILS if you get this wrong
+================================================================================
 
-  PPC_SITE_ID       = ${snippet.siteId}
-  PPC_API_BASE      = ${snippet.apiBase}
-  PPC_ESCROW        = ${snippet.escrow}
-  PPC_USDC          = ${snippet.usdc}
-  PPC_PRICE_MICROS  = ${snippet.priceMicros}     // ${usdc} USDC per crawl
-  PPC_CHAIN         = ${snippet.chain}
-  PPC_CHAIN_ID      = ${snippet.chainId}
+The 402 response MUST advertise these fields (JSON body + matching headers):
 
-Do all of this:
+  {
+    "siteId":      "${snippet.siteId}",     // bytes32, 0x + 64 hex chars
+    "escrow":      "${snippet.escrow}",     // EVM address, 0x + 40 hex chars
+    "usdc":        "${snippet.usdc}",       // EVM address, 0x + 40 hex chars
+    "priceMicros": ${snippet.priceMicros},                                 // integer, ${usdc} USDC = ${snippet.priceMicros} micros
+    "chain":       "${snippet.chain}",
+    "chainId":     ${snippet.chainId},
+    "nonce":       "0x<64 lowercase hex chars>"        // bytes32, fresh per request
+  }
 
-1. Add this meta tag to every HTML page in the <head>:
+NONCE FORMAT IS NOT NEGOTIABLE. The smart contract signature is
+\`payForCrawl(bytes32 siteId, bytes32 nonce, uint256 amount)\`. Anything other
+than 0x + exactly 64 hex chars will be rejected by viem's ABI encoder before
+the tx is even broadcast.
+
+  CORRECT:   0x4f793990f434441eab3c8b62f1206d670000000000000000000000000000abcd
+  WRONG:     4f793990-f434-441e-ab3c-8b62f1206d67   (UUID — 36 chars, dashes)
+  WRONG:     0xabcd                                    (too short)
+
+In JS / Edge runtime always use:
+
+  const nonce = '0x' + Array.from(crypto.getRandomValues(new Uint8Array(32)),
+    b => b.toString(16).padStart(2, '0')).join('')
+
+NEVER use \`crypto.randomUUID()\`.
+
+================================================================================
+TASKS
+================================================================================
+
+1. Add these meta tags to every HTML page \`<head>\` (so cooperative agents can
+   discover terms before crawling):
+
 ${snippet.metaTag}
 
-2. Choose ONE enforcement layer based on where ${snippet.domain} is hosted:
+2. Add hard enforcement. Pick the enforcement layer based on hosting:
 
-   a) Cloudflare proxied site → deploy a Cloudflare Worker.
-      - Open Cloudflare Dashboard → Workers & Pages → Create → Hello World.
-      - Replace the Worker code with the file from
-        ${snippet.apiBase}/templates/worker.js
-      - Settings → Variables: add the seven PPC_* env vars above plus
-        PPC_ORIGIN = the real origin URL of ${snippet.domain}.
-      - Add a Route on ${snippet.domain}/* pointing at this Worker.
+   (A) VERCEL / NEXT.JS — copy this file verbatim to \`middleware.js\` at the
+       project root. It is the canonical reference implementation:
 
-   b) Vercel / Next.js site → add Edge Middleware.
-      - Create middleware.ts at the project root with the matcher
-        config: ["/article/:path*"] (adjust paths I want to gate).
-      - Detect bot User-Agents (GPTBot, ClaudeBot, PerplexityBot, Bytespider,
-        Anthropic-AI, Google-Extended, MetaAI, CCBot, cohere-ai). For matched
-        requests without an X-PPC-Receipt header, return HTTP 402 with the
-        JSON body { siteId, escrow, usdc, priceMicros, chain, chainId, nonce }.
-      - For requests with X-PPC-Receipt + X-PPC-Nonce, POST to
-        \`\${PPC_API_BASE}/api/gateway/verify\` with { siteId, nonce, txHash,
-        userAgent, path }; on 200, call NextResponse.next(); else return 402.
-      - Add the seven PPC_* env vars in the Vercel project settings.
+\`\`\`js
+${middlewareSrc}\`\`\`
 
-   c) Express / Node site → add a middleware identical to (b), but using
-      Express req/res. Mount it BEFORE any route handler. Same behaviour:
-      402 with payment terms, verify on second hit.
+       Then in Vercel project settings add the seven PPC_* env vars listed in
+       the file (override the defaults if you want). Deploy.
 
-3. Verify the deployment by running:
+   (B) CLOUDFLARE — fetch the worker template from
+         ${snippet.apiBase}/templates/worker.js
+       It uses the same bytes32 nonce helper. Add a Route on
+         ${snippet.domain}/*
+       and add the same PPC_* env vars + PPC_ORIGIN = the origin URL.
 
-      curl -i -A "GPTBot" https://${snippet.domain}/
-      # → HTTP/1.1 402 Payment Required + JSON body with siteId + nonce
+   (C) EXPRESS / NODE — port the same logic to req/res; mount BEFORE all
+       routes; use the same \`freshNonceBytes32\` helper.
 
-      curl -i https://${snippet.domain}/
-      # → HTTP/1.1 200 OK (humans pass through)
+3. Verify the deployment by running THESE THREE commands and pasting their
+   complete output back to me:
 
-4. Do NOT modify the contract addresses or siteId. They are immutable on-chain
-   identifiers tied to my publisher wallet.
+   # a) Bot probe must return 402 with a bytes32 nonce
+   curl -i -A "GPTBot" https://${snippet.domain}/
 
-5. Once deployed, paste back: the live URL of the gated site, the route I'm
-   gating, and the curl output for both requests above.`;
+   # b) Nonce regex check (must succeed):
+   curl -s -A "GPTBot" https://${snippet.domain}/ \\
+     | python -c "import sys,json,re;n=json.load(sys.stdin)['nonce'];assert re.fullmatch(r'0x[0-9a-f]{64}',n),f'BAD NONCE {n}';print('nonce OK',n)"
+
+   # c) Human request must return 200 with full content
+   curl -i https://${snippet.domain}/ | head -n 1
+
+4. Do NOT modify the contract addresses, the siteId, the chainId, or the
+   meta-tag values. They are immutable on-chain identifiers tied to my
+   publisher wallet — changing them breaks payments.
+
+5. Once deployed and verified, reply with:
+   - the live URL
+   - the matcher / route you gated
+   - the full output of the three curl commands above`;
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-white/60">
         Copy this prompt and paste it into Cursor / Claude / Codex / your AI agent of choice.
-        It already includes your on-chain <code>siteId</code>, contract addresses, and price —
-        the agent just has to wire it into your hosting platform.
+        It already includes your on-chain <code>siteId</code>, contract addresses, price, and a
+        complete reference middleware — the agent just has to drop the file in and deploy.
       </p>
       <CopyBlock label="Prompt for AI agent" value={prompt} />
       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-xs text-white/60">
-        <strong className="text-white/80">Why this works:</strong> the credentials above are
-        <em> public on-chain identifiers</em>, not secrets. Anyone who knows them can only{" "}
+        <strong className="text-white/80">Why this works:</strong> the credentials above are{" "}
+        <em>public on-chain identifiers</em>, not secrets. Anyone who knows them can only{" "}
         <em>pay you</em>; they cannot withdraw, change your price, or impersonate you. Your
         publisher wallet (the one that signed registerSite) is the only key that can mutate
         the registry entry.
