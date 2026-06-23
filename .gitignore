@@ -17,9 +17,14 @@ demo-site/dist/
 demo-site/.next/
 demo-site/.vercel/
 demo-site/
-
+######################################################################
 AGENTS.md
 DEPLOYMENT.md
+New plan.md
+REPORT.md
+SECURITY_AUDIT.md
+PAYPERCRAWL_SKILL.md
+PAYMENT_FLOW_REPORT.md
 
 scripts/
 mcp-server/
